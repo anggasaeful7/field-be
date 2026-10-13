@@ -12,7 +12,9 @@
    - **Approver**: Akses agregat ke seluruh laporan untuk proses validasi.
    - **Admin**: Akses menyeluruh termasuk manajemen akun pengguna terpusat (tanpa registrasi publik).
 
-- **Live URL**: *(Opsional: masukkan tautan deploy jika ada, misal: https://field.angscode.com)*
+- **Live FrontEnd URL**: *(Opsional: masukkan tautan deploy jika ada, misal: https://field-fe-production.up.railway.app/)*
+- **Live BackEnd URL**: *(Opsional: masukkan tautan deploy jika ada, misal: https://field-be-production.up.railway.app/)*
+- **Live Swagger BE Docs URL**: *(Opsional: masukkan tautan deploy jika ada, misal: https://field-be-production.up.railway.app/api/docs)*
 - **Repository FrontEnd**: *([Link repo GitHub](https://github.com/anggasaeful7/field-fe))*
 - **Repository BackEnd**: *([Link repo GitHub](https://github.com/anggasaeful7/field-be))*
 
@@ -24,9 +26,9 @@ Gunakan kredensial akun berikut untuk masuk ke dashboard:
 
 | Role | Email | Password | Hak Akses Utama |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@mapid.dev` | `admin123` | Kelola akun pengguna, lihat semua laporan, approve/reject |
-| **Pelapor** | `pelapor@mapid.dev` | `pelapor123` | Buat laporan, lihat laporan sendiri, edit saat pending |
-| **Approver** | `approver@mapid.dev` | `approver123` | Lihat semua laporan, aksi approve/reject & toggle status |
+| **Admin** | `admin@example.dev` | `admin123` | Kelola akun pengguna, lihat semua laporan, approve/reject |
+| **Pelapor** | `pelapor@example.dev` | `pelapor123` | Buat laporan, lihat laporan sendiri, edit saat pending |
+| **Approver** | `approver@example.dev` | `approver123` | Lihat semua laporan, aksi approve/reject & toggle status |
 
 *Catatan: Akun dibuat oleh Admin, tidak ada registrasi mandiri.*
 
@@ -72,11 +74,16 @@ docker compose up -d --build
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/login` | Publik | Login & generate JWT token |
 | `GET` | `/api/auth/me` | Auth | Data profil user aktif |
-| `GET` | `/api/users` | Admin | Daftar akun pengguna |
+| `GET` | `/api/users` | Admin | Daftar akun pengguna aktif |
 | `POST` | `/api/users` | Admin | Buat akun baru (Admin-only) |
+| `PUT` | `/api/users/:id` | Admin | Edit nama, email, dan role pengguna |
+| `PATCH` | `/api/users/:id/password` | Admin | Ubah kata sandi pengguna |
+| `DELETE` | `/api/users/:id` | Admin | Soft delete pengguna (nonaktifkan akun) |
 | `GET` | `/api/reports` | Auth | Pelapor (hanya miliknya) / Approver & Admin (semua) |
-| `POST` | `/api/reports` | Pelapor, Admin | Buat laporan (default `pending`) |
-| `PUT` | `/api/reports/:id` | Pelapor, Admin | Edit laporan (hanya jika `pending`) |
+| `GET` | `/api/reports/summary` | Auth | Ringkasan statistik laporan sesuai role pengguna |
+| `GET` | `/api/reports/:id` | Auth | Detail laporan lengkap beserta timeline riwayat aktivitas |
+| `POST` | `/api/reports` | Pelapor, Admin | Buat laporan (default `pending`) & catat log |
+| `PUT` | `/api/reports/:id` | Pelapor, Admin | Edit laporan (hanya jika `pending`) & catat log |
 | `PATCH` | `/api/reports/:id/status` | Approver, Admin | Approve/Reject & toggle status (mencatat audit reviewer & waktu) |
 
 ---

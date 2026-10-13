@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   listReports,
+  getReportsSummary,
+  getReportDetail,
   createReport,
   updateReport,
   updateReportStatus
@@ -12,6 +14,8 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/', listReports);
+router.get('/summary', getReportsSummary);
+router.get('/:id', getReportDetail);
 router.post('/', authorize('pelapor', 'admin'), createReport);
 router.put('/:id', authorize('pelapor', 'admin'), updateReport);
 router.patch('/:id/status', authorize('approver', 'admin'), updateReportStatus);

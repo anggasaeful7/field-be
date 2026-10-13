@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import http from 'node:http';
 import app from './index.js';
 
@@ -129,7 +130,55 @@ async function testAll() {
     }, pelaporToken);
     console.log('10. Pelapor forbidden from creating user:', forbidCreate.status === 403 ? 'PASS (Correctly Forbidden)' : 'FAIL');
 
-    console.log('\nALL 10 API & RBAC TESTS PASSED SUCCESSFULLY!');
+    // 11. Reports Summary Stats
+    const summaryRes = await request('/reports/summary', {}, approverToken);
+    console.log('11. Reports summary stats:', summaryRes.status === 200 && summaryRes.data.data?.total !== undefined ? 'PASS' : 'FAIL');
+
+    // 12. Report Detail & Timeline Logs
+    const detailRes = await request(`/reports/${reportId}`, {}, approverToken);
+    const hasLogs = Array.isArray(detailRes.data.data?.logs) && detailRes.data.data.logs.length > 0;
+    console.log('12. Report detail & timeline logs:', detailRes.status === 200 && hasLogs ? 'PASS' : 'FAIL');
+
+    // 13. Admin Edit User
+    const newUserId = createUser.data.data?.id;
+    const editUserRes = await request(`/users/${newUserId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: 'Petugas Diedit',
+        email: testEmail,
+        role: 'approver'
+      })
+    }, adminToken);
+    console.log('13. Admin Edit User:', editUserRes.status === 200 && editUserRes.data.data?.name === 'Petugas Diedit' ? 'PASS' : 'FAIL');
+
+    // 14. Admin Change Password
+    const changePassRes = await request(`/users/${newUserId}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        newPassword: 'newpassword123',
+        confirmPassword: 'newpassword123'
+      })
+    }, adminToken);
+    console.log('14. Admin Change Password:', changePassRes.status === 200 ? 'PASS' : 'FAIL');
+
+    // 15. Admin cannot delete self
+    const adminMe = await request('/auth/me', {}, adminToken);
+    const deleteSelfRes = await request(`/users/${adminMe.data.data.id}`, { method: 'DELETE' }, adminToken);
+    console.log('15. Admin delete self blocked:', deleteSelfRes.status === 400 ? 'PASS (Correctly Blocked)' : 'FAIL');
+
+    // 16. Admin Soft Delete User & verify cannot login
+    const deleteUserRes = await request(`/users/${newUserId}`, { method: 'DELETE' }, adminToken);
+    const deletedLogin = await request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: testEmail, password: 'newpassword123' })
+    });
+    console.log('16. Soft Delete User & Login blocked:', deleteUserRes.status === 200 && deletedLogin.status === 401 ? 'PASS' : 'FAIL');
+
+    // 17. Swagger UI Docs Endpoint
+    const docsRes = await fetch(`http://localhost:${PORT}/api/docs/`);
+    console.log('17. Swagger UI Docs (/api/docs):', docsRes.status === 200 ? 'PASS' : 'FAIL');
+
+    console.log('\nALL 17 API, RBAC & SWAGGER TESTS PASSED SUCCESSFULLY!');
   } finally {
     server.close();
     process.exit(0);

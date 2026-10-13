@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import reportRoutes from './routes/reports.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerDocument } from './swagger.js';
 
 dotenv.config();
 
@@ -17,6 +19,11 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ success: true, message: 'Field Report API is healthy' });
 });
 
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.get('/docs', (_req: Request, res: Response) => {
+  res.redirect('/api/docs');
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
@@ -25,8 +32,10 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ success: false, message: err.message || 'Terjadi kesalahan pada server' });
 });
 
-app.listen(port, () => {
-  console.log(`Backend server running on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== 'test' && process.env.npm_lifecycle_event !== 'test') {
+  app.listen(port, () => {
+    console.log(`Backend server running on http://localhost:${port}`);
+  });
+}
 
 export default app;

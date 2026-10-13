@@ -6,8 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'pelapor', 'approver')),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ DEFAULT NULL
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);
 
 CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
@@ -24,12 +28,26 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
 
+CREATE TABLE IF NOT EXISTS report_logs (
+    id SERIAL PRIMARY KEY,
+    report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    actor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(50) NOT NULL, -- 'created', 'updated', 'approved', 'rejected'
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_logs_report_id ON report_logs(report_id);
+
 -- Seed Data: Demo Accounts (password: admin123, pelapor123, approver123)
 INSERT INTO users (name, email, password_hash, role)
 VALUES
     ('Administrator', 'admin@example.dev', '$2b$10$v5gnX9RJlYgAKU7QXhkfFunqlzpZ3RYmNl0pnq5Vm9EvZ6LEmekum', 'admin'),
     ('Budi Pelapor', 'pelapor@example.dev', '$2b$10$mh5bcJct5LS.6n84pAq/4.1feeGy5VuPgF.qvTKl3H58RlOuCJho2', 'pelapor'),
-    ('Siti Approver', 'approver@example.dev', '$2b$10$sc1pfyQ/6gDect7O5/ILQeKUgN1S76tiXEqGXR37fosVxGPCEYMLW', 'approver')
+    ('Siti Approver', 'approver@example.dev', '$2b$10$sc1pfyQ/6gDect7O5/ILQeKUgN1S76tiXEqGXR37fosVxGPCEYMLW', 'approver'),
+    ('Administrator', 'admin@mapid.dev', '$2b$10$v5gnX9RJlYgAKU7QXhkfFunqlzpZ3RYmNl0pnq5Vm9EvZ6LEmekum', 'admin'),
+    ('Budi Pelapor', 'pelapor@mapid.dev', '$2b$10$mh5bcJct5LS.6n84pAq/4.1feeGy5VuPgF.qvTKl3H58RlOuCJho2', 'pelapor'),
+    ('Siti Approver', 'approver@mapid.dev', '$2b$10$sc1pfyQ/6gDect7O5/ILQeKUgN1S76tiXEqGXR37fosVxGPCEYMLW', 'approver')
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed Data: Sample Initial Reports
@@ -68,3 +86,17 @@ SELECT
 FROM users u_pelapor, users u_approver
 WHERE u_pelapor.email = 'pelapor@example.dev' AND u_approver.email = 'approver@example.dev'
 AND NOT EXISTS (SELECT 1 FROM reports WHERE nama = 'Verifikasi Saluran Drainase Kawasan Industri');
+
+-- Seed Data: Sample Report Logs
+INSERT INTO report_logs (report_id, actor_id, action, notes, created_at)
+SELECT r.id, r.reporter_id, 'created', 'Laporan pertama kali dibuat', r.created_at
+FROM reports r
+WHERE NOT EXISTS (SELECT 1 FROM report_logs rl WHERE rl.report_id = r.id AND rl.action = 'created');
+
+INSERT INTO report_logs (report_id, actor_id, action, notes, created_at)
+SELECT r.id, r.reviewed_by, r.status, 
+       CASE WHEN r.status = 'approved' THEN 'Laporan diverifikasi & disetujui' ELSE 'Laporan ditolak oleh peninjau' END,
+       r.reviewed_at
+FROM reports r
+WHERE r.reviewed_by IS NOT NULL AND r.reviewed_at IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM report_logs rl WHERE rl.report_id = r.id AND rl.action = r.status);
